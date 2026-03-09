@@ -61,9 +61,9 @@
     async function load() {
       try {
         const [health, logs, chat] = await Promise.all([
-          fetch('/api/health').then(r=>r.json()),
-          fetch('/api/logs?limit=20').then(r=>r.json()),
-          fetch('/api/chat?limit=30').then(r=>r.json())
+          fetch('http://13.59.35.210:18789/api/health').then(r=>r.json()),
+          fetch('http://13.59.35.210:18789/api/logs?limit=20').then(r=>r.json()),
+          fetch('http://13.59.35.210:18789/api/chat?limit=30').then(r=>r.json())
         ]);
         document.getElementById('health').innerHTML = health.cpu ? `
           <tr><td>CPU</td><td class="${health.cpu.usage_percent>80?'err':'ok'}">${health.cpu.usage_percent}% (${health.cpu.cores} cores)</td></tr>
