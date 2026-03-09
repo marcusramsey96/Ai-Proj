@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OpenClaw Status</title>
+  <style>
+    body { font-family: Inter, system-ui, Arial, sans-serif; background: #0f172a; color: #e2e8f0; margin: 0; padding: 2rem; }
+    .container { max-width: 1200px; margin: 0 auto; }
+    h1 { color: #38bdf8; margin-bottom: .5rem; }
+    .subtitle { color: #94a3b8; margin-bottom: 2rem; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+    .card { background: #1e293b; padding: 1.5rem; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3); }
+    .card h2 { margin: 0 0 1rem 0; color: #4ade80; font-size: 1.2rem; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: .75rem; border-bottom: 1px solid #334155; }
+    th { color: #94a3b8; font-weight: 600; }
+    .ok { color: #4ade80; }
+    .warn { color: #fbbf24; }
+    .err { color: #f87171; }
+    .mono { font-family: Monaco, Consolas, monospace; font-size: .9rem; }
+    .logs { max-height: 400px; overflow-y: auto; background: #0f172a; padding: 1rem; border-radius: 4px; }
+    .logs div { margin-bottom: .5rem; padding-bottom: .5rem; border-bottom: 1px solid #334155; }
+    small { color: #64748b; }
+    .btn { background: #38bdf8; color: #0f172a; padding: .5rem 1rem; border: none; border-radius: 4px; cursor: pointer; margin-right: .5rem; margin-bottom: .5rem; }
+    .btn:hover { background: #7dd3fc; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>OpenClaw Dashboard</h1>
+    <div class="subtitle">Autonomous monitoring and deployment — powered by AI agents</div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>System Health</h2>
+        <table id="health">
+          <tr><th colspan=2>Loading…</th></tr>
+        </table>
+      </div>
+      <div class="card">
+        <h2>Latest Logs</h2>
+        <div id="logs" class="logs">Loading…</div>
+      </div>
+      <div class="card">
+        <h2>Agent Activity</h2>
+        <div id="chat" class="logs">Loading…</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Actions</h2>
+      <button class="btn" onclick="runAction('reporter')">Run Reporter</button>
+      <button class="btn" onclick="runAction('task_archiver')">Archive Tasks</button>
+      <button class="btn" onclick="runAction('memory_curator')">Curate Memory</button>
+      <button class="btn" onclick="runAction('web-deploy', 'deploy_logs')">Publish Logs</button>
+    </div>
+  </div>
+
+  <script>
+    async function load() {
+      try {
+        const [health, logs, chat] = await Promise.all([
+          fetch('/api/health').then(r=>r.json()),
+          fetch('/api/logs?limit=20').then(r=>r.json()),
+          fetch('/api/chat?limit=30').then(r=>r.json())
+        ]);
+        document.getElementById('health').innerHTML = health.cpu ? `
+          <tr><td>CPU</td><td class="${health.cpu.usage_percent>80?'err':'ok'}">${health.cpu.usage_percent}% (${health.cpu.cores} cores)</td></tr>
+          <tr><td>Memory</td><td class="${health.memory.percent_used>90?'err':'ok'}">${health.memory.percent_used}% (${health.memory.used} / ${health.memory.total})</td></tr>
+          <tr><td>Disk</td><td class="${health.disk?.percent_used>90?'err':'ok'}">${health.disk?.percent_used||'N/A'}% (${health.disk?.used} / ${health.disk?.total})</td></tr>
+          <tr><td>OpenClaw</td><td class="${health.openclaw?.status==='active'?'ok':'err'}">${health.openclaw?.status||'unknown'}</td></tr>
+        ` : '<tr><td colspan=2>No health data</td></tr>';
+        document.getElementById('logs').innerHTML = logs.map(l => `<div><small>${l.timestamp}</small> ${l.message || l.action_taken}</div>`).join('');
+        document.getElementById('chat').innerHTML = chat.messages.slice(-10).reverse().map(m => `<div><small style="color:#64748b">${m.from}</small> ${m.content}</div>`).join('');
+      } catch(e) { console.error(e); }
+    }
+    async function runAction(skill, action) {
+      try {
+        await fetch(`/api/run?task=${skill}&action=${action}`, {method:'POST'});
+        setTimeout(load, 1000);
+      } catch(e) { alert('Failed: '+e); }
+    }
+    setInterval(load, 30000);
+    load();
+  </script>
+</body>
+</html>
